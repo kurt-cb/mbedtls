@@ -40,6 +40,7 @@ set(src_crypto
     gcm.c
     hkdf.c
     hmac_drbg.c
+    itron_ecdsa.c
     md.c
     md5.c
     memory_buffer_alloc.c

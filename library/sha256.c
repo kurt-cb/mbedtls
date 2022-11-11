@@ -196,6 +196,7 @@ int mbedtls_sha256_starts( mbedtls_sha256_context *ctx, int is224 )
 
     ctx->total[0] = 0;
     ctx->total[1] = 0;
+    ctx->fullBufferTotal = 0;
 
     if( is224 == 0 )
     {
@@ -591,6 +592,9 @@ int mbedtls_sha256_update( mbedtls_sha256_context *ctx,
     ctx->total[0] += (uint32_t) ilen;
     ctx->total[0] &= 0xFFFFFFFF;
 
+    memcpy( (ctx->fullBuffer + ctx->fullBufferTotal), input, ilen );
+    ctx->fullBufferTotal += ilen;
+
     if( ctx->total[0] < (uint32_t) ilen )
         ctx->total[1]++;
 
@@ -642,22 +646,30 @@ int mbedtls_sha256_finish( mbedtls_sha256_context *ctx,
     used = ctx->total[0] & 0x3F;
 
     ctx->buffer[used++] = 0x80;
+    ctx->fullBuffer[ctx->fullBufferTotal++] = 0x80;
 
     if( used <= 56 )
     {
         /* Enough room for padding + length in current block */
         memset( ctx->buffer + used, 0, 56 - used );
+        memset( ctx->fullBuffer + ctx->fullBufferTotal, 0, 56 - used );
+        ctx->fullBufferTotal += 56 - used;
     }
     else
     {
         /* We'll need an extra block */
         memset( ctx->buffer + used, 0, SHA256_BLOCK_SIZE - used );
+        memset( ctx->fullBuffer + ctx->fullBufferTotal, 0, SHA256_BLOCK_SIZE - used );
+        ctx->fullBufferTotal += SHA256_BLOCK_SIZE - used;
 
         if( ( ret = mbedtls_internal_sha256_process( ctx, ctx->buffer ) ) != 0 )
             return( ret );
 
         memset( ctx->buffer, 0, 56 );
+        memset( ctx->fullBuffer + ctx->fullBufferTotal, 0, 56 );
+        ctx->fullBufferTotal += 56;
     }
+    uint64_t fullBufferFinalBlockOffset = ctx->fullBufferTotal - 56;
 
     /*
      * Add message length
@@ -667,7 +679,10 @@ int mbedtls_sha256_finish( mbedtls_sha256_context *ctx,
     low  = ( ctx->total[0] <<  3 );
 
     MBEDTLS_PUT_UINT32_BE( high, ctx->buffer, 56 );
+    MBEDTLS_PUT_UINT32_BE( high, ctx->fullBuffer, fullBufferFinalBlockOffset + 56 );
     MBEDTLS_PUT_UINT32_BE( low,  ctx->buffer, 60 );
+    MBEDTLS_PUT_UINT32_BE( low, ctx->fullBuffer, fullBufferFinalBlockOffset + 60 );
+    ctx->fullBufferTotal = fullBufferFinalBlockOffset + SHA256_BLOCK_SIZE;
 
     if( ( ret = mbedtls_internal_sha256_process( ctx, ctx->buffer ) ) != 0 )
         return( ret );

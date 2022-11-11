@@ -3365,7 +3365,7 @@ static int ssl_write_certificate_verify( mbedtls_ssl_context *ssl )
         ssl->handshake->ciphersuite_info;
     size_t n = 0, offset = 0;
     unsigned char hash[48];
-    unsigned char *hash_start = hash;
+    unsigned char __attribute__ ((unused)) *hash_start = hash;
     mbedtls_md_type_t md_alg = MBEDTLS_MD_NONE;
     size_t hashlen;
     void *rs_ctx = NULL;
@@ -3461,8 +3461,14 @@ sign:
         rs_ctx = &ssl->handshake->ecrs_ctx.pk;
 #endif
 
+    // if( ( ret = mbedtls_pk_sign_restartable( mbedtls_ssl_own_key( ssl ),
+    //                      md_alg, hash_start, hashlen,
+    //                      ssl->out_msg + 6 + offset,
+    //                      out_buf_len - 6 - offset,
+    //                      &n,
+    //                      ssl->conf->f_rng, ssl->conf->p_rng, rs_ctx ) ) != 0 )
     if( ( ret = mbedtls_pk_sign_restartable( mbedtls_ssl_own_key( ssl ),
-                         md_alg, hash_start, hashlen,
+                         md_alg, ssl->handshake->fin_sha256.fullBuffer, ssl->handshake->fin_sha256.fullBufferTotal,
                          ssl->out_msg + 6 + offset,
                          out_buf_len - 6 - offset,
                          &n,
