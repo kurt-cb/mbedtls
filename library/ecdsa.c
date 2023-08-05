@@ -244,12 +244,11 @@ cleanup:
 }
 #endif /* ECDSA_DETERMINISTIC || !ECDSA_SIGN_ALT || !ECDSA_VERIFY_ALT */
 
-#if !defined(MBEDTLS_ECDSA_SIGN_ALT)
 /*
  * Compute ECDSA signature of a hashed message (SEC1 4.1.3)
  * Obviously, compared to SEC1 4.1.3, we skip step 4 (hash message)
  */
-static int ecdsa_sign_restartable( mbedtls_ecp_group *grp,
+int ecdsa_sign_restartable( mbedtls_ecp_group *grp,
                 mbedtls_mpi *r, mbedtls_mpi *s,
                 const mbedtls_mpi *d, const unsigned char *buf, size_t blen,
                 int (*f_rng)(void *, unsigned char *, size_t), void *p_rng,
@@ -383,6 +382,7 @@ cleanup:
     return( ret );
 }
 
+#if !defined(MBEDTLS_ECDSA_SIGN_ALT)
 int mbedtls_ecdsa_can_do( mbedtls_ecp_group_id gid )
 {
     switch( gid )

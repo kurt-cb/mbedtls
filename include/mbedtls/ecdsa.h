@@ -421,10 +421,19 @@ int mbedtls_ecdsa_read_signature( mbedtls_ecdsa_context *ctx,
  * \return          Another \c MBEDTLS_ERR_ECP_XXX or \c MBEDTLS_ERR_MPI_XXX
  *                  error code on failure for any other reason.
  */
+
 int mbedtls_ecdsa_read_signature_restartable( mbedtls_ecdsa_context *ctx,
                           const unsigned char *hash, size_t hlen,
                           const unsigned char *sig, size_t slen,
                           mbedtls_ecdsa_restart_ctx *rs_ctx );
+
+int ecdsa_sign_restartable( mbedtls_ecp_group *grp,
+                mbedtls_mpi *r, mbedtls_mpi *s,
+                const mbedtls_mpi *d, const unsigned char *buf, size_t blen,
+                int (*f_rng)(void *, unsigned char *, size_t), void *p_rng,
+                int (*f_rng_blind)(void *, unsigned char *, size_t),
+                void *p_rng_blind,
+                mbedtls_ecdsa_restart_ctx *rs_ctx );
 
 /**
  * \brief          This function generates an ECDSA keypair on the given curve.
