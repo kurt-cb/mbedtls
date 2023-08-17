@@ -117,8 +117,11 @@ int main( void )
 #define DFL_SRTP_MKI            ""
 #define DFL_KEY_OPAQUE_ALG      "none"
 
-#define GET_REQUEST "GET %s HTTP/1.0\r\nExtra-header: "
-#define GET_REQUEST_END "\r\n\r\n"
+#define GET_REQUEST "GET %sapi/v1/challenge/70EFB548-1A14-4358-AEB7-49B799C19A04 HTTP/1.1\r\n"\
+ "Host: didc.test2.services.itron.com\r\n" \
+ "Accept: text/plain, application/json\r\n"
+
+#define GET_REQUEST_END "\r\n"
 
 #if defined(MBEDTLS_X509_CRT_PARSE_C)
 #define USAGE_CONTEXT_CRT_CB \
