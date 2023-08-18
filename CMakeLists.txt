@@ -39,6 +39,8 @@ else()
     project("mbed TLS" C)
 endif()
 
+SET(CMAKE_C_FLAGS "-fPIC ")
+
 include(GNUInstallDirs)
 
 # Determine if mbed TLS is being built as a subproject using add_subdirectory()
