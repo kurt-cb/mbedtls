@@ -385,7 +385,13 @@ static psa_status_t psa_mac_finish_internal(
     if( PSA_ALG_FULL_LENGTH_MAC( operation->alg ) == PSA_ALG_CMAC )
     {
         uint8_t tmp[PSA_BLOCK_CIPHER_BLOCK_MAX_SIZE];
-        int ret = mbedtls_cipher_cmac_finish( &operation->ctx.cmac, tmp );
+        int ret;
+
+        if (mac_size > sizeof(tmp) ) {
+            ret = PSA_ERROR_INVALID_ARGUMENT;
+        } else {
+            ret = mbedtls_cipher_cmac_finish( &operation->ctx.cmac, tmp );
+        }
         if( ret == 0 )
             memcpy( mac, tmp, mac_size );
         mbedtls_platform_zeroize( tmp, sizeof( tmp ) );
