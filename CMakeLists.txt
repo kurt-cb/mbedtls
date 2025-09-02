@@ -51,7 +51,7 @@ endif()
 
 include(GNUInstallDirs)
 
-SET(CMAKE_C_FLAGS "-fPIC -Wno-incompatible-pointer-types")
+SET(CMAKE_C_FLAGS "-fPIC -Wno-incompatible-pointer-types -Wno-cast-qual")
 
 # Determine if Mbed TLS is being built as a subproject using add_subdirectory()
 if(NOT DEFINED MBEDTLS_AS_SUBPROJECT)
