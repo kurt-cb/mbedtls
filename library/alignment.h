@@ -34,7 +34,9 @@
  * specifies that on Windows-on-Arm64, unaligned access is safe (except for uncached
  * device memory).
  */
-#define MBEDTLS_EFFICIENT_UNALIGNED_ACCESS
+// DSC: If this is defined it reveals a bug in the GCM module that prevents decryption of server hello
+// extensions.
+//#define MBEDTLS_EFFICIENT_UNALIGNED_ACCESS
 #endif
 
 #if defined(__IAR_SYSTEMS_ICC__) && \

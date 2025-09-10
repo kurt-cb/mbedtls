@@ -643,7 +643,7 @@
  *        macro is not defined. To completely disable return value check
  *        warnings, define #MBEDTLS_CHECK_RETURN with an empty expansion.
  */
-//#define MBEDTLS_CHECK_RETURN_WARNING
+#define MBEDTLS_CHECK_RETURN_WARNING
 
 /**
  * \def MBEDTLS_CIPHER_MODE_CBC
@@ -764,7 +764,7 @@
 //#define MBEDTLS_ECP_DP_SECP521R1_ENABLED
 //#define MBEDTLS_ECP_DP_SECP192K1_ENABLED
 //#define MBEDTLS_ECP_DP_SECP224K1_ENABLED
-#define MBEDTLS_ECP_DP_SECP256K1_ENABLED
+//#define MBEDTLS_ECP_DP_SECP256K1_ENABLED
 //#define MBEDTLS_ECP_DP_BP256R1_ENABLED
 //#define MBEDTLS_ECP_DP_BP384R1_ENABLED
 //#define MBEDTLS_ECP_DP_BP512R1_ENABLED
@@ -858,7 +858,7 @@
  *
  * Comment this macro to disable deterministic ECDSA.
  */
-//#define MBEDTLS_ECDSA_DETERMINISTIC
+#define MBEDTLS_ECDSA_DETERMINISTIC
 
 /**
  * \def MBEDTLS_KEY_EXCHANGE_PSK_ENABLED
@@ -2909,6 +2909,7 @@
  *
  * Requires: MBEDTLS_GCM_C
  */
+// DSC beware...
 //#define MBEDTLS_GCM_LARGE_TABLE
 
 /**
