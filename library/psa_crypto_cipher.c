@@ -3,19 +3,7 @@
  */
 /*
  *  Copyright The Mbed TLS Contributors
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License"); you may
- *  not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ *  SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
  */
 
 #include "common.h"
@@ -25,6 +13,7 @@
 #include "psa_crypto_cipher.h"
 #include "psa_crypto_core.h"
 #include "psa_crypto_random_impl.h"
+#include "constant_time_internal.h"
 
 #include "mbedtls/cipher.h"
 #include "mbedtls/error.h"
@@ -42,45 +31,94 @@ static psa_status_t mbedtls_cipher_validate_values(
     psa_algorithm_t alg,
     psa_key_type_t key_type)
 {
-    switch (alg) {
-        case PSA_ALG_STREAM_CIPHER:
-        case PSA_ALG_AEAD_WITH_SHORTENED_TAG(PSA_ALG_CHACHA20_POLY1305, 0):
-            if (key_type != PSA_KEY_TYPE_CHACHA20) {
-                return PSA_ERROR_NOT_SUPPORTED;
-            }
-            break;
+    /* Reduce code size - hinting to the compiler about what it can assume allows the compiler to
+       eliminate bits of the logic below. */
+#if !defined(PSA_WANT_KEY_TYPE_AES)
+    MBEDTLS_ASSUME(key_type != PSA_KEY_TYPE_AES);
+#endif
+#if !defined(PSA_WANT_KEY_TYPE_ARIA)
+    MBEDTLS_ASSUME(key_type != PSA_KEY_TYPE_ARIA);
+#endif
+#if !defined(PSA_WANT_KEY_TYPE_CAMELLIA)
+    MBEDTLS_ASSUME(key_type != PSA_KEY_TYPE_CAMELLIA);
+#endif
+#if !defined(PSA_WANT_KEY_TYPE_CHACHA20)
+    MBEDTLS_ASSUME(key_type != PSA_KEY_TYPE_CHACHA20);
+#endif
+#if !defined(PSA_WANT_KEY_TYPE_DES)
+    MBEDTLS_ASSUME(key_type != PSA_KEY_TYPE_DES);
+#endif
+#if !defined(PSA_WANT_ALG_CCM)
+    MBEDTLS_ASSUME(alg != PSA_ALG_AEAD_WITH_SHORTENED_TAG(PSA_ALG_CCM, 0));
+#endif
+#if !defined(PSA_WANT_ALG_GCM)
+    MBEDTLS_ASSUME(alg != PSA_ALG_AEAD_WITH_SHORTENED_TAG(PSA_ALG_GCM, 0));
+#endif
+#if !defined(PSA_WANT_ALG_STREAM_CIPHER)
+    MBEDTLS_ASSUME(alg != PSA_ALG_STREAM_CIPHER);
+#endif
+#if !defined(PSA_WANT_ALG_CHACHA20_POLY1305)
+    MBEDTLS_ASSUME(alg != PSA_ALG_AEAD_WITH_SHORTENED_TAG(PSA_ALG_CHACHA20_POLY1305, 0));
+#endif
+#if !defined(PSA_WANT_ALG_CCM_STAR_NO_TAG)
+    MBEDTLS_ASSUME(alg != PSA_ALG_CCM_STAR_NO_TAG);
+#endif
+#if !defined(PSA_WANT_ALG_CTR)
+    MBEDTLS_ASSUME(alg != PSA_ALG_CTR);
+#endif
+#if !defined(PSA_WANT_ALG_CFB)
+    MBEDTLS_ASSUME(alg != PSA_ALG_CFB);
+#endif
+#if !defined(PSA_WANT_ALG_OFB)
+    MBEDTLS_ASSUME(alg != PSA_ALG_OFB);
+#endif
+#if !defined(PSA_WANT_ALG_ECB_NO_PADDING)
+    MBEDTLS_ASSUME(alg != PSA_ALG_ECB_NO_PADDING);
+#endif
+#if !defined(PSA_WANT_ALG_CBC_NO_PADDING)
+    MBEDTLS_ASSUME(alg != PSA_ALG_CBC_NO_PADDING);
+#endif
+#if !defined(PSA_WANT_ALG_CBC_PKCS7)
+    MBEDTLS_ASSUME(alg != PSA_ALG_CBC_PKCS7);
+#endif
+#if !defined(PSA_WANT_ALG_CMAC)
+    MBEDTLS_ASSUME(alg != PSA_ALG_CMAC);
+#endif
 
-        case PSA_ALG_AEAD_WITH_SHORTENED_TAG(PSA_ALG_CCM, 0):
-        case PSA_ALG_AEAD_WITH_SHORTENED_TAG(PSA_ALG_GCM, 0):
-        case PSA_ALG_CCM_STAR_NO_TAG:
-            if ((key_type != PSA_KEY_TYPE_AES) &&
-                (key_type != PSA_KEY_TYPE_ARIA) &&
-                (key_type != PSA_KEY_TYPE_CAMELLIA)) {
-                return PSA_ERROR_NOT_SUPPORTED;
-            }
-            break;
-
-        case PSA_ALG_CTR:
-        case PSA_ALG_CFB:
-        case PSA_ALG_OFB:
-        case PSA_ALG_XTS:
-        case PSA_ALG_ECB_NO_PADDING:
-        case PSA_ALG_CBC_NO_PADDING:
-        case PSA_ALG_CBC_PKCS7:
-        case PSA_ALG_CMAC:
-            if ((key_type != PSA_KEY_TYPE_AES) &&
-                (key_type != PSA_KEY_TYPE_ARIA) &&
-                (key_type != PSA_KEY_TYPE_DES) &&
-                (key_type != PSA_KEY_TYPE_CAMELLIA)) {
-                return PSA_ERROR_NOT_SUPPORTED;
-            }
-            break;
-
-        default:
-            return PSA_ERROR_NOT_SUPPORTED;
+    if (alg == PSA_ALG_STREAM_CIPHER ||
+        alg == PSA_ALG_AEAD_WITH_SHORTENED_TAG(PSA_ALG_CHACHA20_POLY1305, 0)) {
+        if (key_type == PSA_KEY_TYPE_CHACHA20) {
+            return PSA_SUCCESS;
+        }
     }
 
-    return PSA_SUCCESS;
+    if (alg == PSA_ALG_AEAD_WITH_SHORTENED_TAG(PSA_ALG_CCM, 0) ||
+        alg == PSA_ALG_AEAD_WITH_SHORTENED_TAG(PSA_ALG_GCM, 0) ||
+        alg == PSA_ALG_CCM_STAR_NO_TAG) {
+        if (key_type == PSA_KEY_TYPE_AES ||
+            key_type == PSA_KEY_TYPE_ARIA ||
+            key_type == PSA_KEY_TYPE_CAMELLIA) {
+            return PSA_SUCCESS;
+        }
+    }
+
+    if (alg == PSA_ALG_CTR ||
+        alg == PSA_ALG_CFB ||
+        alg == PSA_ALG_OFB ||
+        alg == PSA_ALG_XTS ||
+        alg == PSA_ALG_ECB_NO_PADDING ||
+        alg == PSA_ALG_CBC_NO_PADDING ||
+        alg == PSA_ALG_CBC_PKCS7 ||
+        alg == PSA_ALG_CMAC) {
+        if (key_type == PSA_KEY_TYPE_AES ||
+            key_type == PSA_KEY_TYPE_ARIA ||
+            key_type == PSA_KEY_TYPE_DES ||
+            key_type == PSA_KEY_TYPE_CAMELLIA) {
+            return PSA_SUCCESS;
+        }
+    }
+
+    return PSA_ERROR_NOT_SUPPORTED;
 }
 
 psa_status_t mbedtls_cipher_values_from_psa(
@@ -223,7 +261,7 @@ const mbedtls_cipher_info_t *mbedtls_cipher_info_from_psa(
 {
     mbedtls_cipher_mode_t mode;
     psa_status_t status;
-    mbedtls_cipher_id_t cipher_id_tmp;
+    mbedtls_cipher_id_t cipher_id_tmp = MBEDTLS_CIPHER_ID_NONE;
 
     status = mbedtls_cipher_values_from_psa(alg, key_type, &key_bits, &mode, &cipher_id_tmp);
     if (status != PSA_SUCCESS) {
@@ -249,14 +287,14 @@ static psa_status_t psa_cipher_setup(
     int ret = 0;
     size_t key_bits;
     const mbedtls_cipher_info_t *cipher_info = NULL;
-    psa_key_type_t key_type = attributes->core.type;
+    psa_key_type_t key_type = attributes->type;
 
     (void) key_buffer_size;
 
     mbedtls_cipher_init(&operation->ctx.cipher);
 
     operation->alg = alg;
-    key_bits = attributes->core.bits;
+    key_bits = attributes->bits;
     cipher_info = mbedtls_cipher_info_from_psa(alg, key_type,
                                                key_bits, NULL);
     if (cipher_info == NULL) {
@@ -492,7 +530,11 @@ psa_status_t mbedtls_psa_cipher_update(
                                        output_length);
     } else
 #endif /* MBEDTLS_PSA_BUILTIN_ALG_ECB_NO_PADDING */
-    {
+    if (input_length == 0) {
+        /* There is no input, nothing to be done */
+        *output_length = 0;
+        status = PSA_SUCCESS;
+    } else {
         status = mbedtls_to_psa_error(
             mbedtls_cipher_update(&operation->ctx.cipher, input,
                                   input_length, output, output_length));
@@ -510,7 +552,19 @@ psa_status_t mbedtls_psa_cipher_finish(
     uint8_t *output, size_t output_size, size_t *output_length)
 {
     psa_status_t status = PSA_ERROR_GENERIC_ERROR;
-    uint8_t temp_output_buffer[MBEDTLS_MAX_BLOCK_LENGTH];
+    size_t invalid_padding = 0;
+
+    /* We will copy output_size bytes from temp_output_buffer to the
+     * output buffer. We can't use *output_length to determine how
+     * much to copy because we must not leak that value through timing
+     * when doing decryption with unpadding. But the underlying function
+     * is not guaranteed to write beyond *output_length. To ensure we don't
+     * leak the former content of the stack to the caller, wipe that
+     * former content. */
+    uint8_t temp_output_buffer[MBEDTLS_MAX_BLOCK_LENGTH] = { 0 };
+    if (output_size > sizeof(temp_output_buffer)) {
+        output_size = sizeof(temp_output_buffer);
+    }
 
     if (operation->ctx.cipher.unprocessed_len != 0) {
         if (operation->alg == PSA_ALG_ECB_NO_PADDING ||
@@ -521,25 +575,34 @@ psa_status_t mbedtls_psa_cipher_finish(
     }
 
     status = mbedtls_to_psa_error(
-        mbedtls_cipher_finish(&operation->ctx.cipher,
-                              temp_output_buffer,
-                              output_length));
+        mbedtls_cipher_finish_padded(&operation->ctx.cipher,
+                                     temp_output_buffer,
+                                     output_length,
+                                     &invalid_padding));
     if (status != PSA_SUCCESS) {
         goto exit;
     }
 
-    if (*output_length == 0) {
+    if (output_size == 0) {
         ; /* Nothing to copy. Note that output may be NULL in this case. */
-    } else if (output_size >= *output_length) {
-        memcpy(output, temp_output_buffer, *output_length);
     } else {
-        status = PSA_ERROR_BUFFER_TOO_SMALL;
+        /* Do not use the value of *output_length to determine how much
+         * to copy. When decrypting a padded cipher, the output length is
+         * sensitive, and leaking it could allow a padding oracle attack. */
+        memcpy(output, temp_output_buffer, output_size);
     }
+
+    status = mbedtls_ct_error_if_else_0(invalid_padding,
+                                        PSA_ERROR_INVALID_PADDING);
+    mbedtls_ct_condition_t buffer_too_small =
+        mbedtls_ct_uint_lt(output_size, *output_length);
+    status = mbedtls_ct_error_if(buffer_too_small,
+                                 PSA_ERROR_BUFFER_TOO_SMALL,
+                                 status);
 
 exit:
     mbedtls_platform_zeroize(temp_output_buffer,
                              sizeof(temp_output_buffer));
-
     return status;
 }
 
@@ -660,17 +723,21 @@ psa_status_t mbedtls_psa_cipher_decrypt(
         &operation,
         mbedtls_buffer_offset(output, accumulated_length),
         output_size - accumulated_length, &olength);
-    if (status != PSA_SUCCESS) {
-        goto exit;
-    }
 
     *output_length = accumulated_length + olength;
 
 exit:
-    if (status == PSA_SUCCESS) {
-        status = mbedtls_psa_cipher_abort(&operation);
-    } else {
-        mbedtls_psa_cipher_abort(&operation);
+    /* C99 doesn't allow a declaration to follow a label */;
+    psa_status_t abort_status = mbedtls_psa_cipher_abort(&operation);
+    /* Normally abort shouldn't fail unless the operation is in a bad
+     * state, in which case we'd expect finish to fail with the same error.
+     * So it doesn't matter much which call's error code we pick when both
+     * fail. However, in unauthenticated decryption specifically, the
+     * distinction between PSA_SUCCESS and PSA_ERROR_INVALID_PADDING is
+     * security-sensitive (risk of a padding oracle attack), so here we
+     * must not have a code path that depends on the value of status. */
+    if (abort_status != PSA_SUCCESS) {
+        status = abort_status;
     }
 
     return status;

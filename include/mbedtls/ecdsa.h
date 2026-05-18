@@ -12,19 +12,7 @@
  */
 /*
  *  Copyright The Mbed TLS Contributors
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License"); you may
- *  not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ *  SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
  */
 
 #ifndef MBEDTLS_ECDSA_H
@@ -162,7 +150,8 @@ int mbedtls_ecdsa_can_do(mbedtls_ecp_group_id gid);
  *                  buffer of length \p blen Bytes. It may be \c NULL if
  *                  \p blen is zero.
  * \param blen      The length of \p buf in Bytes.
- * \param f_rng     The RNG function. This must not be \c NULL.
+ * \param f_rng     The RNG function, used both to generate the ECDSA nonce
+ *                  and for blinding. This must not be \c NULL.
  * \param p_rng     The RNG context to be passed to \p f_rng. This may be
  *                  \c NULL if \p f_rng doesn't need a context parameter.
  *
@@ -172,7 +161,7 @@ int mbedtls_ecdsa_can_do(mbedtls_ecp_group_id gid);
  */
 int mbedtls_ecdsa_sign(mbedtls_ecp_group *grp, mbedtls_mpi *r, mbedtls_mpi *s,
                        const mbedtls_mpi *d, const unsigned char *buf, size_t blen,
-                       int (*f_rng)(void *, unsigned char *, size_t), void *p_rng);
+                       mbedtls_f_rng_t *f_rng, void *p_rng);
 
 #if defined(MBEDTLS_ECDSA_DETERMINISTIC)
 /**
@@ -219,7 +208,7 @@ int mbedtls_ecdsa_sign_det_ext(mbedtls_ecp_group *grp, mbedtls_mpi *r,
                                mbedtls_mpi *s, const mbedtls_mpi *d,
                                const unsigned char *buf, size_t blen,
                                mbedtls_md_type_t md_alg,
-                               int (*f_rng_blind)(void *, unsigned char *, size_t),
+                               mbedtls_f_rng_t *f_rng_blind,
                                void *p_rng_blind);
 #endif /* MBEDTLS_ECDSA_DETERMINISTIC */
 
@@ -259,7 +248,8 @@ int mbedtls_ecdsa_sign_det_ext(mbedtls_ecp_group *grp, mbedtls_mpi *r,
  *                      buffer of length \p blen Bytes. It may be \c NULL if
  *                      \p blen is zero.
  * \param blen          The length of \p buf in Bytes.
- * \param f_rng         The RNG function. This must not be \c NULL.
+ * \param f_rng         The RNG function used to generate the ECDSA nonce.
+ *                      This must not be \c NULL.
  * \param p_rng         The RNG context to be passed to \p f_rng. This may be
  *                      \c NULL if \p f_rng doesn't need a context parameter.
  * \param f_rng_blind   The RNG function used for blinding. This must not be
@@ -283,9 +273,9 @@ int mbedtls_ecdsa_sign_restartable(
     mbedtls_mpi *r, mbedtls_mpi *s,
     const mbedtls_mpi *d,
     const unsigned char *buf, size_t blen,
-    int (*f_rng)(void *, unsigned char *, size_t),
+    mbedtls_f_rng_t *f_rng,
     void *p_rng,
-    int (*f_rng_blind)(void *, unsigned char *, size_t),
+    mbedtls_f_rng_t *f_rng_blind,
     void *p_rng_blind,
     mbedtls_ecdsa_restart_ctx *rs_ctx);
 
@@ -346,7 +336,7 @@ int mbedtls_ecdsa_sign_det_restartable(
     mbedtls_mpi *r, mbedtls_mpi *s,
     const mbedtls_mpi *d, const unsigned char *buf, size_t blen,
     mbedtls_md_type_t md_alg,
-    int (*f_rng_blind)(void *, unsigned char *, size_t),
+    mbedtls_f_rng_t *f_rng_blind,
     void *p_rng_blind,
     mbedtls_ecdsa_restart_ctx *rs_ctx);
 
@@ -470,10 +460,10 @@ int mbedtls_ecdsa_verify_restartable(mbedtls_ecp_group *grp,
  * \param sig_size  The size of the \p sig buffer in bytes.
  * \param slen      The address at which to store the actual length of
  *                  the signature written. Must not be \c NULL.
- * \param f_rng     The RNG function. This must not be \c NULL if
- *                  #MBEDTLS_ECDSA_DETERMINISTIC is unset. Otherwise,
- *                  it is used only for blinding and may be set to \c NULL, but
- *                  doing so is DEPRECATED.
+ * \param f_rng     The RNG function. This is used for blinding.
+ *                  If #MBEDTLS_ECDSA_DETERMINISTIC is unset, this is also
+ *                  used to generate the ECDSA nonce.
+ *                  This must not be \c NULL.
  * \param p_rng     The RNG context to be passed to \p f_rng. This may be
  *                  \c NULL if \p f_rng is \c NULL or doesn't use a context.
  *
@@ -485,7 +475,7 @@ int mbedtls_ecdsa_write_signature(mbedtls_ecdsa_context *ctx,
                                   mbedtls_md_type_t md_alg,
                                   const unsigned char *hash, size_t hlen,
                                   unsigned char *sig, size_t sig_size, size_t *slen,
-                                  int (*f_rng)(void *, unsigned char *, size_t),
+                                  mbedtls_f_rng_t *f_rng,
                                   void *p_rng);
 
 /**
@@ -513,9 +503,10 @@ int mbedtls_ecdsa_write_signature(mbedtls_ecdsa_context *ctx,
  * \param sig_size  The size of the \p sig buffer in bytes.
  * \param slen      The address at which to store the actual length of
  *                  the signature written. Must not be \c NULL.
- * \param f_rng     The RNG function. This must not be \c NULL if
- *                  #MBEDTLS_ECDSA_DETERMINISTIC is unset. Otherwise,
- *                  it is unused and may be set to \c NULL.
+ * \param f_rng     The RNG function. This is used for blinding.
+ *                  If #MBEDTLS_ECDSA_DETERMINISTIC is unset, this is also
+ *                  used to generate the ECDSA nonce.
+ *                  This must not be \c NULL.
  * \param p_rng     The RNG context to be passed to \p f_rng. This may be
  *                  \c NULL if \p f_rng is \c NULL or doesn't use a context.
  * \param rs_ctx    The restart context to use. This may be \c NULL to disable
@@ -532,7 +523,7 @@ int mbedtls_ecdsa_write_signature_restartable(mbedtls_ecdsa_context *ctx,
                                               mbedtls_md_type_t md_alg,
                                               const unsigned char *hash, size_t hlen,
                                               unsigned char *sig, size_t sig_size, size_t *slen,
-                                              int (*f_rng)(void *, unsigned char *, size_t),
+                                              mbedtls_f_rng_t *f_rng,
                                               void *p_rng,
                                               mbedtls_ecdsa_restart_ctx *rs_ctx);
 
@@ -620,7 +611,7 @@ int mbedtls_ecdsa_read_signature_restartable(mbedtls_ecdsa_context *ctx,
  * \return         An \c MBEDTLS_ERR_ECP_XXX code on failure.
  */
 int mbedtls_ecdsa_genkey(mbedtls_ecdsa_context *ctx, mbedtls_ecp_group_id gid,
-                         int (*f_rng)(void *, unsigned char *, size_t), void *p_rng);
+                         mbedtls_f_rng_t *f_rng, void *p_rng);
 
 /**
  * \brief           This function sets up an ECDSA context from an EC key pair.

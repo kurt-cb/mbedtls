@@ -2,26 +2,14 @@
  *  X.509 base functions for creating certificates / CSRs
  *
  *  Copyright The Mbed TLS Contributors
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License"); you may
- *  not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ *  SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
  */
 
 #include "common.h"
 
 #if defined(MBEDTLS_X509_CREATE_C)
 
-#include "mbedtls/x509.h"
+#include "x509_internal.h"
 #include "mbedtls/asn1write.h"
 #include "mbedtls/error.h"
 #include "mbedtls/oid.h"
@@ -181,7 +169,7 @@ static int parse_attribute_value_string(const char *s,
             return MBEDTLS_ERR_X509_INVALID_NAME;
         }
     }
-    *data_len = d - data;
+    *data_len = (size_t) (d - data);
     return 0;
 }
 
@@ -304,13 +292,17 @@ int mbedtls_x509_string_to_names(mbedtls_asn1_named_data **head, const char *nam
     unsigned char data[MBEDTLS_X509_MAX_DN_NAME_SIZE];
     size_t data_len = 0;
 
-    /* Clear existing chain if present */
-    mbedtls_asn1_free_named_data_list(head);
+    /* Ensure the output parameter is not already populated.
+     * (If it were, overwriting it would likely cause a memory leak.)
+     */
+    if (*head != NULL) {
+        return MBEDTLS_ERR_X509_BAD_INPUT_DATA;
+    }
 
     while (c <= end) {
         if (in_attr_type && *c == '=') {
-            if ((attr_descr = x509_attr_descr_from_name(s, c - s)) == NULL) {
-                if ((mbedtls_oid_from_numeric_string(&oid, s, c - s)) != 0) {
+            if ((attr_descr = x509_attr_descr_from_name(s, (size_t) (c - s))) == NULL) {
+                if ((mbedtls_oid_from_numeric_string(&oid, s, (size_t) (c - s))) != 0) {
                     return MBEDTLS_ERR_X509_INVALID_NAME;
                 } else {
                     numericoid = 1;
@@ -318,6 +310,9 @@ int mbedtls_x509_string_to_names(mbedtls_asn1_named_data **head, const char *nam
             } else {
                 oid.len = strlen(attr_descr->oid);
                 oid.p = mbedtls_calloc(1, oid.len);
+                if (oid.p == NULL) {
+                    return MBEDTLS_ERR_X509_ALLOC_FAILED;
+                }
                 memcpy(oid.p, attr_descr->oid, oid.len);
                 numericoid = 0;
             }
@@ -334,7 +329,7 @@ int mbedtls_x509_string_to_names(mbedtls_asn1_named_data **head, const char *nam
                 /* We know that c >= s (loop invariant) and c != s (in this
                  * else branch), hence c - s - 1 >= 0. */
                 parse_ret = parse_attribute_value_hex_der_encoded(
-                    s + 1, c - s - 1,
+                    s + 1, (size_t) (c - s) - 1,
                     data, sizeof(data), &data_len, &tag);
                 if (parse_ret != 0) {
                     mbedtls_free(oid.p);
@@ -393,6 +388,10 @@ int mbedtls_x509_set_extension(mbedtls_asn1_named_data **head, const char *oid, 
                                int critical, const unsigned char *val, size_t val_len)
 {
     mbedtls_asn1_named_data *cur;
+
+    if (val_len > (SIZE_MAX  - 1)) {
+        return MBEDTLS_ERR_X509_BAD_INPUT_DATA;
+    }
 
     if ((cur = mbedtls_asn1_store_named_data(head, oid, oid_len,
                                              NULL, val_len + 1)) == NULL) {

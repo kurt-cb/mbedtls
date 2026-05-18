@@ -2,19 +2,7 @@
  *  FIPS-180-2 compliant SHA-384/512 implementation
  *
  *  Copyright The Mbed TLS Contributors
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License"); you may
- *  not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ *  SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
  */
 /*
  *  The SHA-512 Secure Hash Standard was published by NIST in 2002.
@@ -24,15 +12,18 @@
 
 #if defined(__aarch64__) && !defined(__ARM_FEATURE_SHA512) && \
     defined(__clang__) && __clang_major__ >= 7
-/* TODO: Re-consider above after https://reviews.llvm.org/D131064 merged.
- *
+/*
  * The intrinsic declaration are guarded by predefined ACLE macros in clang:
  * these are normally only enabled by the -march option on the command line.
  * By defining the macros ourselves we gain access to those declarations without
  * requiring -march on the command line.
  *
- * `arm_neon.h` could be included by any header file, so we put these defines
- * at the top of this file, before any includes.
+ * `arm_neon.h` is included by common.h, so we put these defines
+ * at the top of this file, before any includes but after the intrinsic
+ * declaration. This is necessary with
+ * Clang <=15.x. With Clang 16.0 and above, these macro definitions are
+ * no longer required, but they're harmless. See
+ * https://reviews.llvm.org/D131064
  */
 #define __ARM_FEATURE_SHA512 1
 #define MBEDTLS_ENABLE_ARM_SHA3_EXTENSIONS_COMPILER_FLAG
@@ -60,9 +51,7 @@
 #  if defined(MBEDTLS_SHA512_USE_A64_CRYPTO_IF_PRESENT) || \
     defined(MBEDTLS_SHA512_USE_A64_CRYPTO_ONLY)
 /* *INDENT-OFF* */
-#   ifdef __ARM_NEON
-#       include <arm_neon.h>
-#   else
+#   if !defined(MBEDTLS_HAVE_NEON_INTRINSICS)
 #       error "Target does not support NEON instructions"
 #   endif
 /*
@@ -116,17 +105,20 @@
 #      if defined(__linux__)
 /* Our preferred method of detection is getauxval() */
 #        include <sys/auxv.h>
+#        if !defined(HWCAP_SHA512)
+/* The same header that declares getauxval() should provide the HWCAP_xxx
+ * constants to analyze its return value. However, the libc may be too
+ * old to have the constant that we need. So if it's missing, assume that
+ * the value is the same one used by the Linux kernel ABI.
+ */
+#          define HWCAP_SHA512 (1 << 21)
+#        endif
 #      endif
 /* Use SIGILL on Unix, and fall back to it on Linux */
 #      include <signal.h>
 #    endif
 #  endif
-#elif defined(_M_ARM64)
-#  if defined(MBEDTLS_SHA512_USE_A64_CRYPTO_IF_PRESENT) || \
-    defined(MBEDTLS_SHA512_USE_A64_CRYPTO_ONLY)
-#    include <arm64_neon.h>
-#  endif
-#else
+#elif !defined(MBEDTLS_PLATFORM_IS_WINDOWS_ON_ARM64)
 #  undef MBEDTLS_SHA512_USE_A64_CRYPTO_ONLY
 #  undef MBEDTLS_SHA512_USE_A64_CRYPTO_IF_PRESENT
 #endif
@@ -154,7 +146,7 @@ static int mbedtls_a64_crypto_sha512_determine_support(void)
                            NULL, 0);
     return ret == 0 && value != 0;
 }
-#elif defined(_M_ARM64)
+#elif defined(MBEDTLS_PLATFORM_IS_WINDOWS_ON_ARM64)
 /*
  * As of March 2022, there don't appear to be any PF_ARM_V8_* flags
  * available to pass to IsProcessorFeaturePresent() to check for

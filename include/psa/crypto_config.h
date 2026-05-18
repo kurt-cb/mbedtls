@@ -32,28 +32,12 @@
 #endif
 /*
  *  Copyright The Mbed TLS Contributors
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License"); you may
- *  not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ *  SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
  */
 
 #ifndef PSA_CRYPTO_CONFIG_H
 #define PSA_CRYPTO_CONFIG_H
 
-/*
- * CBC-MAC is not yet supported via the PSA API in Mbed TLS.
- */
-//#define PSA_WANT_ALG_CBC_MAC                    1
 #define PSA_WANT_ALG_CBC_NO_PADDING             1
 #define PSA_WANT_ALG_CBC_PKCS7                  1
 #define PSA_WANT_ALG_CCM                        1
@@ -96,22 +80,12 @@
 #define PSA_WANT_ALG_TLS12_PSK_TO_MS            1
 #define PSA_WANT_ALG_TLS12_ECJPAKE_TO_PMS       1
 
-/* XTS is not yet supported via the PSA API in Mbed TLS.
- * Note: when adding support, also adjust include/mbedtls/config_psa.h */
-//#define PSA_WANT_ALG_XTS                        1
-
 #define PSA_WANT_ECC_BRAINPOOL_P_R1_256         1
 #define PSA_WANT_ECC_BRAINPOOL_P_R1_384         1
 #define PSA_WANT_ECC_BRAINPOOL_P_R1_512         1
 #define PSA_WANT_ECC_MONTGOMERY_255             1
 #define PSA_WANT_ECC_MONTGOMERY_448             1
 #define PSA_WANT_ECC_SECP_K1_192                1
-/*
- * SECP224K1 is buggy via the PSA API in Mbed TLS
- * (https://github.com/Mbed-TLS/mbedtls/issues/3541). Thus, do not enable it by
- * default.
- */
-//#define PSA_WANT_ECC_SECP_K1_224                1
 #define PSA_WANT_ECC_SECP_K1_256                1
 #define PSA_WANT_ECC_SECP_R1_192                1
 #define PSA_WANT_ECC_SECP_R1_224                1
@@ -120,6 +94,12 @@
 #define PSA_WANT_ECC_SECP_R1_256                1
 #define PSA_WANT_ECC_SECP_R1_384                1
 #define PSA_WANT_ECC_SECP_R1_521                1
+
+#define PSA_WANT_DH_RFC7919_2048                1
+#define PSA_WANT_DH_RFC7919_3072                1
+#define PSA_WANT_DH_RFC7919_4096                1
+#define PSA_WANT_DH_RFC7919_6144                1
+#define PSA_WANT_DH_RFC7919_8192                1
 
 #define PSA_WANT_KEY_TYPE_DERIVE                1
 #define PSA_WANT_KEY_TYPE_PASSWORD              1

@@ -21,19 +21,7 @@
  */
 /*
  *  Copyright The Mbed TLS Contributors
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License"); you may
- *  not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ *  SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
  */
 #ifndef MBEDTLS_PLATFORM_H
 #define MBEDTLS_PLATFORM_H
@@ -395,6 +383,37 @@ int mbedtls_platform_set_exit(void (*exit_func)(int status));
 #define MBEDTLS_EXIT_FAILURE MBEDTLS_PLATFORM_STD_EXIT_FAILURE
 #else
 #define MBEDTLS_EXIT_FAILURE 1
+#endif
+
+#if defined(MBEDTLS_ENTROPY_C) && \
+    !defined(MBEDTLS_NO_PLATFORM_ENTROPY) && \
+    !(defined(_WIN32) && !defined(EFIX64) && !defined(EFI32))
+/* Platforms where MBEDTLS_PLATFORM_DEV_RANDOM is used
+ * unless a dedicated system call is available both at
+ * compile time and at run time. */
+#define MBEDTLS_PLATFORM_HAVE_DEV_RANDOM
+#endif
+
+#if !defined(MBEDTLS_PLATFORM_DEV_RANDOM)
+#define MBEDTLS_PLATFORM_DEV_RANDOM "/dev/random"
+#endif
+
+/* Arrange for mbedtls_platform_dev_random to always be visible to
+ * Doxygen, because it's linked from the documentation of
+ * MBEDTLS_PLATFORM_DEV_RANDOM and that documentation can be visible
+ * even in configurations where it isn't used. */
+#if defined(MBEDTLS_PLATFORM_HAVE_DEV_RANDOM) || defined(__DOXYGEN__)
+/**
+ * Path to a special file that returns cryptographic-quality random bytes
+ * when read.
+ *
+ * This variable is only declared on platforms where it is used.
+ * It is available when the macro `MBEDTLS_PLATFORM_HAVE_DEV_RANDOM` is defined.
+ *
+ * The default value is #MBEDTLS_PLATFORM_DEV_RANDOM.
+ * See the documentation of this option for guidance.
+ */
+extern const char *mbedtls_platform_dev_random;
 #endif
 
 /*

@@ -5,19 +5,7 @@
  */
 /*
  *  Copyright The Mbed TLS Contributors
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License"); you may
- *  not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ *  SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
  */
 #ifndef MBEDTLS_ECJPAKE_H
 #define MBEDTLS_ECJPAKE_H
@@ -174,7 +162,7 @@ int mbedtls_ecjpake_check(const mbedtls_ecjpake_context *ctx);
  */
 int mbedtls_ecjpake_write_round_one(mbedtls_ecjpake_context *ctx,
                                     unsigned char *buf, size_t len, size_t *olen,
-                                    int (*f_rng)(void *, unsigned char *, size_t),
+                                    mbedtls_f_rng_t *f_rng,
                                     void *p_rng);
 
 /**
@@ -215,7 +203,7 @@ int mbedtls_ecjpake_read_round_one(mbedtls_ecjpake_context *ctx,
  */
 int mbedtls_ecjpake_write_round_two(mbedtls_ecjpake_context *ctx,
                                     unsigned char *buf, size_t len, size_t *olen,
-                                    int (*f_rng)(void *, unsigned char *, size_t),
+                                    mbedtls_f_rng_t *f_rng,
                                     void *p_rng);
 
 /**
@@ -255,7 +243,7 @@ int mbedtls_ecjpake_read_round_two(mbedtls_ecjpake_context *ctx,
  */
 int mbedtls_ecjpake_derive_secret(mbedtls_ecjpake_context *ctx,
                                   unsigned char *buf, size_t len, size_t *olen,
-                                  int (*f_rng)(void *, unsigned char *, size_t),
+                                  mbedtls_f_rng_t *f_rng,
                                   void *p_rng);
 
 /**
@@ -278,7 +266,7 @@ int mbedtls_ecjpake_derive_secret(mbedtls_ecjpake_context *ctx,
  */
 int mbedtls_ecjpake_write_shared_key(mbedtls_ecjpake_context *ctx,
                                      unsigned char *buf, size_t len, size_t *olen,
-                                     int (*f_rng)(void *, unsigned char *, size_t),
+                                     mbedtls_f_rng_t *f_rng,
                                      void *p_rng);
 
 /**

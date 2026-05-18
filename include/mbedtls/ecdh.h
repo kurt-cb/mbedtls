@@ -6,7 +6,7 @@
  * The Elliptic Curve Diffie-Hellman (ECDH) protocol is an anonymous
  * key agreement protocol allowing two parties to establish a shared
  * secret over an insecure channel. Each party must have an
- * elliptic-curve public–private key pair.
+ * elliptic-curve public private key pair.
  *
  * For more information, see <em>NIST SP 800-56A Rev. 2: Recommendation for
  * Pair-Wise Key Establishment Schemes Using Discrete Logarithm
@@ -14,19 +14,7 @@
  */
 /*
  *  Copyright The Mbed TLS Contributors
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License"); you may
- *  not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ *  SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
  */
 
 #ifndef MBEDTLS_ECDH_H
@@ -154,6 +142,19 @@ typedef struct mbedtls_ecdh_context {
 mbedtls_ecdh_context;
 
 /**
+ * \brief          Return the ECP group for provided context.
+ *
+ * \note           To access group specific fields, users should use
+ *                 `mbedtls_ecp_curve_info_from_grp_id` or
+ *                 `mbedtls_ecp_group_load` on the extracted `group_id`.
+ *
+ * \param ctx      The ECDH context to parse. This must not be \c NULL.
+ *
+ * \return         The \c mbedtls_ecp_group_id of the context.
+ */
+mbedtls_ecp_group_id mbedtls_ecdh_get_grp_id(mbedtls_ecdh_context *ctx);
+
+/**
  * \brief          Check whether a given group can be used for ECDH.
  *
  * \param gid      The ECP group ID to check.
@@ -188,7 +189,7 @@ int mbedtls_ecdh_can_do(mbedtls_ecp_group_id gid);
  *                  \c MBEDTLS_MPI_XXX error code on failure.
  */
 int mbedtls_ecdh_gen_public(mbedtls_ecp_group *grp, mbedtls_mpi *d, mbedtls_ecp_point *Q,
-                            int (*f_rng)(void *, unsigned char *, size_t),
+                            mbedtls_f_rng_t *f_rng,
                             void *p_rng);
 
 /**
@@ -224,7 +225,7 @@ int mbedtls_ecdh_gen_public(mbedtls_ecp_group *grp, mbedtls_mpi *d, mbedtls_ecp_
  */
 int mbedtls_ecdh_compute_shared(mbedtls_ecp_group *grp, mbedtls_mpi *z,
                                 const mbedtls_ecp_point *Q, const mbedtls_mpi *d,
-                                int (*f_rng)(void *, unsigned char *, size_t),
+                                mbedtls_f_rng_t *f_rng,
                                 void *p_rng);
 
 /**
@@ -289,7 +290,7 @@ void mbedtls_ecdh_free(mbedtls_ecdh_context *ctx);
  */
 int mbedtls_ecdh_make_params(mbedtls_ecdh_context *ctx, size_t *olen,
                              unsigned char *buf, size_t blen,
-                             int (*f_rng)(void *, unsigned char *, size_t),
+                             mbedtls_f_rng_t *f_rng,
                              void *p_rng);
 
 /**
@@ -324,7 +325,7 @@ int mbedtls_ecdh_read_params(mbedtls_ecdh_context *ctx,
  * \brief           This function sets up an ECDH context from an EC key.
  *
  *                  It is used by clients and servers in place of the
- *                  ServerKeyEchange for static ECDH, and imports ECDH
+ *                  ServerKeyExchange for static ECDH, and imports ECDH
  *                  parameters from the EC key information of a certificate.
  *
  * \see             ecp.h
@@ -371,7 +372,7 @@ int mbedtls_ecdh_get_params(mbedtls_ecdh_context *ctx,
  */
 int mbedtls_ecdh_make_public(mbedtls_ecdh_context *ctx, size_t *olen,
                              unsigned char *buf, size_t blen,
-                             int (*f_rng)(void *, unsigned char *, size_t),
+                             mbedtls_f_rng_t *f_rng,
                              void *p_rng);
 
 /**
@@ -427,7 +428,7 @@ int mbedtls_ecdh_read_public(mbedtls_ecdh_context *ctx,
  */
 int mbedtls_ecdh_calc_secret(mbedtls_ecdh_context *ctx, size_t *olen,
                              unsigned char *buf, size_t blen,
-                             int (*f_rng)(void *, unsigned char *, size_t),
+                             mbedtls_f_rng_t *f_rng,
                              void *p_rng);
 
 #if defined(MBEDTLS_ECP_RESTARTABLE)

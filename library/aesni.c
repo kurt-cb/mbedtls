@@ -2,19 +2,7 @@
  *  AES-NI support functions
  *
  *  Copyright The Mbed TLS Contributors
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License"); you may
- *  not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ *  SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
  */
 
 /*
@@ -48,7 +36,7 @@
 #pragma GCC push_options
 #pragma GCC target ("pclmul,sse2,aes")
 #define MBEDTLS_POP_TARGET_PRAGMA
-#elif defined(__clang__)
+#elif defined(__clang__) && (__clang_major__ >= 5)
 #pragma clang attribute push (__attribute__((target("pclmul,sse2,aes"))), apply_to=function)
 #define MBEDTLS_POP_TARGET_PRAGMA
 #endif
@@ -60,8 +48,19 @@
  */
 int mbedtls_aesni_has_support(unsigned int what)
 {
-    static int done = 0;
-    static unsigned int c = 0;
+    /* To avoid a race condition, tell the compiler that the assignment
+     * `done = 1` and the assignment to `c` may not be reordered.
+     * https://github.com/Mbed-TLS/mbedtls/issues/9840
+     *
+     * Note that we may also be worried about memory access reordering,
+     * but fortunately the x86 memory model is not too wild: stores
+     * from the same thread are observed consistently by other threads.
+     * (See example 8-1 in Sewell et al., "x86-TSO: A Rigorous and Usable
+     * Programmer’s Model for x86 Multiprocessors", CACM, 2010,
+     * https://www.cl.cam.ac.uk/~pes20/weakmemory/cacm.pdf)
+     */
+    static volatile int done = 0;
+    static volatile unsigned int c = 0;
 
     if (!done) {
 #if MBEDTLS_AESNI_HAVE_CODE == 2
@@ -106,14 +105,19 @@ int mbedtls_aesni_crypt_ecb(mbedtls_aes_context *ctx,
     ++rk;
     --nr;
 
-    if (mode == 0) {
+#if !defined(MBEDTLS_BLOCK_CIPHER_NO_DECRYPT)
+    if (mode == MBEDTLS_AES_DECRYPT) {
         while (nr != 0) {
             state = _mm_aesdec_si128(state, *rk);
             ++rk;
             --nr;
         }
         state = _mm_aesdeclast_si128(state, *rk);
-    } else {
+    } else
+#else
+    (void) mode;
+#endif
+    {
         while (nr != 0) {
             state = _mm_aesenc_si128(state, *rk);
             ++rk;
@@ -230,6 +234,7 @@ void mbedtls_aesni_gcm_mult(unsigned char c[16],
 /*
  * Compute decryption round keys from encryption round keys
  */
+#if !defined(MBEDTLS_BLOCK_CIPHER_NO_DECRYPT)
 void mbedtls_aesni_inverse_key(unsigned char *invkey,
                                const unsigned char *fwdkey, int nr)
 {
@@ -242,6 +247,7 @@ void mbedtls_aesni_inverse_key(unsigned char *invkey,
     }
     *ik = *fk;
 }
+#endif
 
 /*
  * Key expansion, 128-bit case
@@ -477,6 +483,7 @@ int mbedtls_aesni_crypt_ecb(mbedtls_aes_context *ctx,
          "jnz       1b              \n\t"
          "movdqu    (%1), %%xmm1    \n\t" // load round key
          AESENCLAST(xmm1_xmm0)            // last round
+#if !defined(MBEDTLS_BLOCK_CIPHER_NO_DECRYPT)
          "jmp       3f              \n\t"
 
          "2:                        \n\t" // decryption loop
@@ -487,12 +494,13 @@ int mbedtls_aesni_crypt_ecb(mbedtls_aes_context *ctx,
          "jnz       2b              \n\t"
          "movdqu    (%1), %%xmm1    \n\t" // load round key
          AESDECLAST(xmm1_xmm0)            // last round
+#endif
 
          "3:                        \n\t"
          "movdqu    %%xmm0, (%4)    \n\t" // export output
          :
          : "r" (ctx->nr), "r" (ctx->buf + ctx->rk_offset), "r" (mode), "r" (input), "r" (output)
-         : "memory", "cc", "xmm0", "xmm1");
+         : "memory", "cc", "xmm0", "xmm1", "0", "1");
 
 
     return 0;
@@ -613,6 +621,7 @@ void mbedtls_aesni_gcm_mult(unsigned char c[16],
 /*
  * Compute decryption round keys from encryption round keys
  */
+#if !defined(MBEDTLS_BLOCK_CIPHER_NO_DECRYPT)
 void mbedtls_aesni_inverse_key(unsigned char *invkey,
                                const unsigned char *fwdkey, int nr)
 {
@@ -632,6 +641,7 @@ void mbedtls_aesni_inverse_key(unsigned char *invkey,
 
     memcpy(ik, fk, 16);
 }
+#endif
 
 /*
  * Key expansion, 128-bit case
@@ -680,7 +690,7 @@ static void aesni_setkey_enc_128(unsigned char *rk,
          AESKEYGENA(xmm0_xmm1, "0x36")      "call 1b \n\t"
          :
          : "r" (rk), "r" (key)
-         : "memory", "cc", "0");
+         : "memory", "cc", "xmm0", "xmm1", "0");
 }
 
 /*
@@ -738,7 +748,7 @@ static void aesni_setkey_enc_192(unsigned char *rk,
 
          :
          : "r" (rk), "r" (key)
-         : "memory", "cc", "0");
+         : "memory", "cc", "xmm0", "xmm1", "xmm2", "0");
 }
 #endif /* !MBEDTLS_AES_ONLY_128_BIT_KEY_LENGTH */
 
@@ -806,7 +816,7 @@ static void aesni_setkey_enc_256(unsigned char *rk,
          AESKEYGENA(xmm1_xmm2, "0x40")      "call 1b \n\t"
          :
          : "r" (rk), "r" (key)
-         : "memory", "cc", "0");
+         : "memory", "cc", "xmm0", "xmm1", "xmm2", "0");
 }
 #endif /* !MBEDTLS_AES_ONLY_128_BIT_KEY_LENGTH */
 

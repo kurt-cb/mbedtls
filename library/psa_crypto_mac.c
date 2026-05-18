@@ -3,19 +3,7 @@
  */
 /*
  *  Copyright The Mbed TLS Contributors
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License"); you may
- *  not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ *  SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
  */
 
 #include "common.h"
@@ -477,6 +465,15 @@ psa_status_t mbedtls_psa_mac_compute(
 {
     psa_status_t status = PSA_ERROR_CORRUPTION_DETECTED;
     mbedtls_psa_mac_operation_t operation = MBEDTLS_PSA_MAC_OPERATION_INIT;
+    /* Make sure the whole operation is zeroed.
+     * PSA_MAC_OPERATION_INIT does not necessarily do it fully,
+     * since one field is a union and initializing a union does not
+     * necessarily initialize all of its members.
+     * In multipart operations, this is done in the API functions,
+     * before driver dispatch, since it needs to be done before calling
+     * the driver entry point. Here, we bypass the multipart API,
+     * so it's our job. */
+    memset(&operation, 0, sizeof(operation));
 
     status = psa_mac_setup(&operation,
                            attributes, key_buffer, key_buffer_size,

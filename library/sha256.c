@@ -2,25 +2,18 @@
  *  FIPS-180-2 compliant SHA-256 implementation
  *
  *  Copyright The Mbed TLS Contributors
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License"); you may
- *  not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ *  SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
  */
 /*
  *  The SHA-256 Secure Hash Standard was published by NIST in 2002.
  *
  *  http://csrc.nist.gov/publications/fips/fips180-2/fips180-2.pdf
  */
+
+/* Ensure that SIG_SETMASK is defined when -std=c99 is used. */
+#if !defined(_GNU_SOURCE)
+#define _GNU_SOURCE
+#endif
 
 #if defined(__clang__) &&  (__clang_major__ >= 4)
 
@@ -33,15 +26,18 @@
 #endif
 
 #if defined(MBEDTLS_SHA256_ARCH_IS_ARMV8_A) && !defined(__ARM_FEATURE_CRYPTO)
-/* TODO: Re-consider above after https://reviews.llvm.org/D131064 merged.
- *
+/*
  * The intrinsic declaration are guarded by predefined ACLE macros in clang:
  * these are normally only enabled by the -march option on the command line.
  * By defining the macros ourselves we gain access to those declarations without
  * requiring -march on the command line.
  *
- * `arm_neon.h` could be included by any header file, so we put these defines
- * at the top of this file, before any includes.
+ * `arm_neon.h` is included by common.h, so we put these defines
+ * at the top of this file, before any includes but after the intrinsic
+ * declaration. This is necessary with
+ * Clang <=15.x. With Clang 16.0 and above, these macro definitions are
+ * no longer required, but they're harmless. See
+ * https://reviews.llvm.org/D131064
  */
 #define __ARM_FEATURE_CRYPTO 1
 /* See: https://arm-software.github.io/acle/main/acle.html#cryptographic-extensions
@@ -54,9 +50,6 @@
 #endif
 
 #endif /* defined(__clang__) &&  (__clang_major__ >= 4) */
-
-/* Ensure that SIG_SETMASK is defined when -std=c99 is used. */
-#define _GNU_SOURCE
 
 #include "common.h"
 
@@ -74,9 +67,7 @@
 
 #  if defined(MBEDTLS_SHA256_USE_ARMV8_A_CRYPTO_IF_PRESENT) || \
     defined(MBEDTLS_SHA256_USE_ARMV8_A_CRYPTO_ONLY)
-#       ifdef __ARM_NEON
-#           include <arm_neon.h>
-#       else
+#       if !defined(MBEDTLS_HAVE_NEON_INTRINSICS)
 #           if defined(MBEDTLS_SHA256_USE_ARMV8_A_CRYPTO_IF_PRESENT)
 #               warning "Target does not support NEON instructions"
 #               undef MBEDTLS_SHA256_USE_ARMV8_A_CRYPTO_IF_PRESENT
@@ -138,12 +129,7 @@
 #      include <signal.h>
 #    endif
 #  endif
-#elif defined(_M_ARM64)
-#  if defined(MBEDTLS_SHA256_USE_ARMV8_A_CRYPTO_IF_PRESENT) || \
-    defined(MBEDTLS_SHA256_USE_ARMV8_A_CRYPTO_ONLY)
-#    include <arm64_neon.h>
-#  endif
-#else
+#elif !defined(MBEDTLS_PLATFORM_IS_WINDOWS_ON_ARM64)
 #  undef MBEDTLS_SHA256_USE_ARMV8_A_CRYPTO_ONLY
 #  undef MBEDTLS_SHA256_USE_ARMV8_A_CRYPTO_IF_PRESENT
 #endif
@@ -168,8 +154,10 @@ static int mbedtls_a64_crypto_sha256_determine_support(void)
 {
     return 1;
 }
-#elif defined(_M_ARM64)
+#elif defined(MBEDTLS_PLATFORM_IS_WINDOWS_ON_ARM64)
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
+#endif
 #include <Windows.h>
 #include <processthreadsapi.h>
 

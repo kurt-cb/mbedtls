@@ -11,19 +11,7 @@
  */
 /*
  *  Copyright The Mbed TLS Contributors
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License"); you may
- *  not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ *  SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
  */
 #ifndef MBEDTLS_RSA_H
 #define MBEDTLS_RSA_H
@@ -439,6 +427,16 @@ int mbedtls_rsa_export_crt(const mbedtls_rsa_context *ctx,
                            mbedtls_mpi *DP, mbedtls_mpi *DQ, mbedtls_mpi *QP);
 
 /**
+ * \brief          This function retrieves the length of the RSA modulus in bits.
+ *
+ * \param ctx      The initialized RSA context.
+ *
+ * \return         The length of the RSA modulus in bits.
+ *
+ */
+size_t mbedtls_rsa_get_bitlen(const mbedtls_rsa_context *ctx);
+
+/**
  * \brief          This function retrieves the length of RSA modulus in Bytes.
  *
  * \param ctx      The initialized RSA context.
@@ -467,7 +465,7 @@ size_t mbedtls_rsa_get_len(const mbedtls_rsa_context *ctx);
  * \return         An \c MBEDTLS_ERR_RSA_XXX error code on failure.
  */
 int mbedtls_rsa_gen_key(mbedtls_rsa_context *ctx,
-                        int (*f_rng)(void *, unsigned char *, size_t),
+                        mbedtls_f_rng_t *f_rng,
                         void *p_rng,
                         unsigned int nbits, int exponent);
 
@@ -592,7 +590,7 @@ int mbedtls_rsa_public(mbedtls_rsa_context *ctx,
  *
  */
 int mbedtls_rsa_private(mbedtls_rsa_context *ctx,
-                        int (*f_rng)(void *, unsigned char *, size_t),
+                        mbedtls_f_rng_t *f_rng,
                         void *p_rng,
                         const unsigned char *input,
                         unsigned char *output);
@@ -621,7 +619,7 @@ int mbedtls_rsa_private(mbedtls_rsa_context *ctx,
  * \return         An \c MBEDTLS_ERR_RSA_XXX error code on failure.
  */
 int mbedtls_rsa_pkcs1_encrypt(mbedtls_rsa_context *ctx,
-                              int (*f_rng)(void *, unsigned char *, size_t),
+                              mbedtls_f_rng_t *f_rng,
                               void *p_rng,
                               size_t ilen,
                               const unsigned char *input,
@@ -648,7 +646,7 @@ int mbedtls_rsa_pkcs1_encrypt(mbedtls_rsa_context *ctx,
  * \return         An \c MBEDTLS_ERR_RSA_XXX error code on failure.
  */
 int mbedtls_rsa_rsaes_pkcs1_v15_encrypt(mbedtls_rsa_context *ctx,
-                                        int (*f_rng)(void *, unsigned char *, size_t),
+                                        mbedtls_f_rng_t *f_rng,
                                         void *p_rng,
                                         size_t ilen,
                                         const unsigned char *input,
@@ -682,7 +680,7 @@ int mbedtls_rsa_rsaes_pkcs1_v15_encrypt(mbedtls_rsa_context *ctx,
  * \return           An \c MBEDTLS_ERR_RSA_XXX error code on failure.
  */
 int mbedtls_rsa_rsaes_oaep_encrypt(mbedtls_rsa_context *ctx,
-                                   int (*f_rng)(void *, unsigned char *, size_t),
+                                   mbedtls_f_rng_t *f_rng,
                                    void *p_rng,
                                    const unsigned char *label, size_t label_len,
                                    size_t ilen,
@@ -695,6 +693,10 @@ int mbedtls_rsa_rsaes_oaep_encrypt(mbedtls_rsa_context *ctx,
  *
  *                 It is the generic wrapper for performing a PKCS#1 decryption
  *                 operation.
+ *
+ * \warning        When \p ctx->padding is set to #MBEDTLS_RSA_PKCS_V15,
+ *                 mbedtls_rsa_rsaes_pkcs1_v15_decrypt() is called, which is an
+ *                 inherently dangerous function (CWE-242).
  *
  * \note           The output buffer length \c output_max_len should be
  *                 as large as the size \p ctx->len of \p ctx->N (for example,
@@ -721,7 +723,7 @@ int mbedtls_rsa_rsaes_oaep_encrypt(mbedtls_rsa_context *ctx,
  * \return         An \c MBEDTLS_ERR_RSA_XXX error code on failure.
  */
 int mbedtls_rsa_pkcs1_decrypt(mbedtls_rsa_context *ctx,
-                              int (*f_rng)(void *, unsigned char *, size_t),
+                              mbedtls_f_rng_t *f_rng,
                               void *p_rng,
                               size_t *olen,
                               const unsigned char *input,
@@ -731,6 +733,11 @@ int mbedtls_rsa_pkcs1_decrypt(mbedtls_rsa_context *ctx,
 /**
  * \brief          This function performs a PKCS#1 v1.5 decryption
  *                 operation (RSAES-PKCS1-v1_5-DECRYPT).
+ *
+ * \warning        This is an inherently dangerous function (CWE-242). Unless
+ *                 it is used in a side channel free and safe way (eg.
+ *                 implementing the TLS protocol as per 7.4.7.1 of RFC 5246),
+ *                 the calling code is vulnerable.
  *
  * \note           The output buffer length \c output_max_len should be
  *                 as large as the size \p ctx->len of \p ctx->N, for example,
@@ -758,7 +765,7 @@ int mbedtls_rsa_pkcs1_decrypt(mbedtls_rsa_context *ctx,
  *
  */
 int mbedtls_rsa_rsaes_pkcs1_v15_decrypt(mbedtls_rsa_context *ctx,
-                                        int (*f_rng)(void *, unsigned char *, size_t),
+                                        mbedtls_f_rng_t *f_rng,
                                         void *p_rng,
                                         size_t *olen,
                                         const unsigned char *input,
@@ -799,7 +806,7 @@ int mbedtls_rsa_rsaes_pkcs1_v15_decrypt(mbedtls_rsa_context *ctx,
  * \return         An \c MBEDTLS_ERR_RSA_XXX error code on failure.
  */
 int mbedtls_rsa_rsaes_oaep_decrypt(mbedtls_rsa_context *ctx,
-                                   int (*f_rng)(void *, unsigned char *, size_t),
+                                   mbedtls_f_rng_t *f_rng,
                                    void *p_rng,
                                    const unsigned char *label, size_t label_len,
                                    size_t *olen,
@@ -842,7 +849,7 @@ int mbedtls_rsa_rsaes_oaep_decrypt(mbedtls_rsa_context *ctx,
  * \return         An \c MBEDTLS_ERR_RSA_XXX error code on failure.
  */
 int mbedtls_rsa_pkcs1_sign(mbedtls_rsa_context *ctx,
-                           int (*f_rng)(void *, unsigned char *, size_t),
+                           mbedtls_f_rng_t *f_rng,
                            void *p_rng,
                            mbedtls_md_type_t md_alg,
                            unsigned int hashlen,
@@ -874,13 +881,14 @@ int mbedtls_rsa_pkcs1_sign(mbedtls_rsa_context *ctx,
  * \return         An \c MBEDTLS_ERR_RSA_XXX error code on failure.
  */
 int mbedtls_rsa_rsassa_pkcs1_v15_sign(mbedtls_rsa_context *ctx,
-                                      int (*f_rng)(void *, unsigned char *, size_t),
+                                      mbedtls_f_rng_t *f_rng,
                                       void *p_rng,
                                       mbedtls_md_type_t md_alg,
                                       unsigned int hashlen,
                                       const unsigned char *hash,
                                       unsigned char *sig);
 
+#if defined(MBEDTLS_PKCS1_V21)
 /**
  * \brief          This function performs a PKCS#1 v2.1 PSS signature
  *                 operation (RSASSA-PSS-SIGN).
@@ -925,7 +933,7 @@ int mbedtls_rsa_rsassa_pkcs1_v15_sign(mbedtls_rsa_context *ctx,
  * \return         An \c MBEDTLS_ERR_RSA_XXX error code on failure.
  */
 int mbedtls_rsa_rsassa_pss_sign_ext(mbedtls_rsa_context *ctx,
-                                    int (*f_rng)(void *, unsigned char *, size_t),
+                                    mbedtls_f_rng_t *f_rng,
                                     void *p_rng,
                                     mbedtls_md_type_t md_alg,
                                     unsigned int hashlen,
@@ -975,12 +983,13 @@ int mbedtls_rsa_rsassa_pss_sign_ext(mbedtls_rsa_context *ctx,
  * \return         An \c MBEDTLS_ERR_RSA_XXX error code on failure.
  */
 int mbedtls_rsa_rsassa_pss_sign(mbedtls_rsa_context *ctx,
-                                int (*f_rng)(void *, unsigned char *, size_t),
+                                mbedtls_f_rng_t *f_rng,
                                 void *p_rng,
                                 mbedtls_md_type_t md_alg,
                                 unsigned int hashlen,
                                 const unsigned char *hash,
                                 unsigned char *sig);
+#endif /* MBEDTLS_PKCS1_V21 */
 
 /**
  * \brief          This function performs a public RSA operation and checks

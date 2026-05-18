@@ -2,19 +2,7 @@
  *  Diffie-Hellman-Merkle key exchange
  *
  *  Copyright The Mbed TLS Contributors
- *  SPDX-License-Identifier: Apache-2.0
- *
- *  Licensed under the Apache License, Version 2.0 (the "License"); you may
- *  not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
- *
- *  http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
- *  WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ *  SPDX-License-Identifier: Apache-2.0 OR GPL-2.0-or-later
  */
 /*
  *  The following sources were referenced in the design of this implementation
@@ -30,6 +18,7 @@
 #if defined(MBEDTLS_DHM_C)
 
 #include "mbedtls/dhm.h"
+#include "bignum_internal.h"
 #include "mbedtls/platform_util.h"
 #include "mbedtls/error.h"
 
@@ -60,10 +49,10 @@ static int dhm_read_bignum(mbedtls_mpi *X,
         return MBEDTLS_ERR_DHM_BAD_INPUT_DATA;
     }
 
-    n = ((*p)[0] << 8) | (*p)[1];
+    n = MBEDTLS_GET_UINT16_BE(*p, 0);
     (*p) += 2;
 
-    if ((int) (end - *p) < n) {
+    if ((size_t) (end - *p) < (size_t) n) {
         return MBEDTLS_ERR_DHM_BAD_INPUT_DATA;
     }
 
@@ -269,7 +258,7 @@ int mbedtls_dhm_make_params(mbedtls_dhm_context *ctx, int x_size,
     DHM_MPI_EXPORT(&ctx->G, n2);
     DHM_MPI_EXPORT(&ctx->GX, n3);
 
-    *olen = p - output;
+    *olen = (size_t) (p - output);
 
 cleanup:
     if (ret != 0 && ret > -128) {
@@ -356,9 +345,6 @@ static int dhm_update_blinding(mbedtls_dhm_context *ctx,
                                int (*f_rng)(void *, unsigned char *, size_t), void *p_rng)
 {
     int ret;
-    mbedtls_mpi R;
-
-    mbedtls_mpi_init(&R);
 
     /*
      * Don't use any blinding the first time a particular X is used,
@@ -393,21 +379,11 @@ static int dhm_update_blinding(mbedtls_dhm_context *ctx,
     /* Vi = random( 2, P-2 ) */
     MBEDTLS_MPI_CHK(dhm_random_below(&ctx->Vi, &ctx->P, f_rng, p_rng));
 
-    /* Vf = Vi^-X mod P
-     * First compute Vi^-1 = R * (R Vi)^-1, (avoiding leaks from inv_mod),
-     * then elevate to the Xth power. */
-    MBEDTLS_MPI_CHK(dhm_random_below(&R, &ctx->P, f_rng, p_rng));
-    MBEDTLS_MPI_CHK(mbedtls_mpi_mul_mpi(&ctx->Vf, &ctx->Vi, &R));
-    MBEDTLS_MPI_CHK(mbedtls_mpi_mod_mpi(&ctx->Vf, &ctx->Vf, &ctx->P));
-    MBEDTLS_MPI_CHK(mbedtls_mpi_inv_mod(&ctx->Vf, &ctx->Vf, &ctx->P));
-    MBEDTLS_MPI_CHK(mbedtls_mpi_mul_mpi(&ctx->Vf, &ctx->Vf, &R));
-    MBEDTLS_MPI_CHK(mbedtls_mpi_mod_mpi(&ctx->Vf, &ctx->Vf, &ctx->P));
-
+    /* Vf = Vi^-X = (Vi^-1)^X mod P */
+    MBEDTLS_MPI_CHK(mbedtls_mpi_gcd_modinv_odd(NULL, &ctx->Vf, &ctx->Vi, &ctx->P));
     MBEDTLS_MPI_CHK(mbedtls_mpi_exp_mod(&ctx->Vf, &ctx->Vf, &ctx->X, &ctx->P, &ctx->RP));
 
 cleanup:
-    mbedtls_mpi_free(&R);
-
     return ret;
 }
 
